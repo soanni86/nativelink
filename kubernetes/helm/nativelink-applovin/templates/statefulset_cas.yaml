@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nativelink-local-cas
+  labels:
+    {{- include "nativelink-applovin.labels" . | nindent 4 }}
+    component: local_storage_cas
+spec:
+  {{- if not .Values.local_storage_cas.autoscaling.enabled }}
+  replicas: {{ .Values.local_storage_cas.replicaCount }}
+  {{- end }}
+  serviceName: nativelink-local-cas
+  selector:
+    matchLabels:
+      {{- include "nativelink-applovin.selectorLabels" . | nindent 6 }}
+      component: local_storage_cas
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap_cas.yaml") . | sha256sum }}
+      {{- with .Values.local_storage_cas.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "nativelink-applovin.selectorLabels" . | nindent 8 }}
+        component: local_storage_cas
+    spec:
+      {{- with .Values.local_storage_cas.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "nativelink-applovin.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.local_storage_cas.podSecurityContext | nindent 8 }}
+      containers:
+        - name: nativelink
+          securityContext:
+            {{- toYaml .Values.local_storage_cas.securityContext | nindent 12 }}
+          image: "{{ .Values.local_storage_cas.image.repository }}:{{ .Values.local_storage_cas.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.local_storage_cas.image.pullPolicy }}
+          {{- with .Values.local_storage_cas.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          args:
+            - "/conf.json5"
+        {{- with .Values.local_storage_cas.containerPorts }}
+          ports:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
+        {{- with .Values.local_storage_cas.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
+        {{- with .Values.local_storage_cas.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
+        {{- with .Values.local_storage_cas.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
+          resources:
+            {{- toYaml .Values.local_storage_cas.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.local_storage_cas.persistence.enabled }}
+            - name: nativelink-local-cas-cache
+              mountPath: /root/.cache/nativelink/
+            {{- end }}
+            - name: nativelink-config
+              mountPath: /conf.json5
+              subPath: conf.json5
+      {{- with .Values.local_storage_cas.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.local_storage_cas.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.local_storage_cas.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: nativelink-config
+          configMap:
+            name: nativelink-config-cas
+  {{- if .Values.local_storage_cas.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: nativelink-local-cas-cache
+      spec:
+        accessModes:
+        - "ReadWriteOnce"
+        storageClassName: {{ .Values.local_storage_cas.persistence.storageClassName }}
+        resources:
+          requests:
+            storage: {{ .Values.local_storage_cas.persistence.size }}
+  {{- end }}

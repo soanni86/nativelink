@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nativelink-config-worker
+  labels:
+    {{- include "nativelink-applovin.labels" . | nindent 4 }}
+    component: worker
+data:
+  conf.json5: |-
+    {{ .Values.worker.conf | nindent 4 }}
+

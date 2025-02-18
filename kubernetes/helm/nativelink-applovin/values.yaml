@@ -1,0 +1,465 @@
+nameOverride: ""
+
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+worker:
+  env:
+    - name: RUST_LOG
+      value: warn
+    - name: CAS_ENDPOINT
+      value: nativelink-cas
+    - name: SCHEDULER_ENDPOINT
+      value: nativelink-scheduler
+  volumes: []
+  volumeMounts: []
+  persistence:
+    enabled: true
+    storageClassName: ssd-aero
+    size: 10Gi
+  replicaCount: 1
+  image:
+    repository: ghcr.io/tracemachina/nativelink
+    pullPolicy: Always
+    #tag: "v0.5.3"
+    tag: ""
+  imagePullSecrets: []
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  containerPorts: []
+  service:
+    type: ClusterIP
+    port: 80
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: chart-example.local
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls: []
+  resources: {}
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  startupProbe: {}
+  readinessProbe: {}
+  livenessProbe: {}
+  conf: |-
+    {
+      "stores": [
+        {
+          "name": "GRPC_LOCAL_STORE",
+          // Note: This file is used to test GRPC store.
+          "grpc": {
+            "instance_name": "",
+            "endpoints": [
+              {"address": "grpc://${CAS_ENDPOINT:-127.0.0.1}:50051"}
+            ],
+            "store_type": "cas"
+          }
+        }, {
+          "name": "GRPC_LOCAL_AC_STORE",
+          // Note: This file is used to test GRPC store.
+          "grpc": {
+            "instance_name": "",
+            "endpoints": [
+              {"address": "grpc://${CAS_ENDPOINT:-127.0.0.1}:50051"}
+            ],
+            "store_type": "ac"
+          }
+        }, {
+          "name": "WORKER_FAST_SLOW_STORE",
+          "fast_slow": {
+            "fast": {
+              "filesystem": {
+                "content_path": "/root/.cache/nativelink/data-worker-test/content_path-cas",
+                "temp_path": "/root/.cache/nativelink/data-worker-test/tmp_path-cas",
+                "eviction_policy": {
+                  // 10gb.
+                  "max_bytes": 10000000000
+                }
+              }
+            },
+            "slow": {
+              "ref_store": {
+                "name": "GRPC_LOCAL_STORE"
+              }
+            }
+          }
+        }
+      ],
+      "workers": [{
+        "local": {
+          "worker_api_endpoint": {
+            "uri": "grpc://${SCHEDULER_ENDPOINT:-127.0.0.1}:50061"
+          },
+          "cas_fast_slow_store": "WORKER_FAST_SLOW_STORE",
+          "upload_action_result": {
+            "ac_store": "GRPC_LOCAL_AC_STORE"
+          },
+          "work_directory": "/root/.cache/nativelink/work",
+          "platform_properties": {
+            "cpu_count": {
+              "query_cmd": "nproc"
+            },
+            "OSFamily": {
+              "values": [""]
+            },
+            "container-image": {
+              "values": [""]
+            },
+            "lre-rs": {
+              "values": [""]
+            }
+          }
+        }
+      }],
+      "servers": []
+    }
+
+scheduler:
+  env:
+    - name: RUST_LOG
+      value: warn
+    - name: CAS_ENDPOINT
+      value: nativelink-cas
+  volumes: []
+  volumeMounts: []
+  replicaCount: 1
+  image:
+    repository: ghcr.io/tracemachina/nativelink
+    pullPolicy: Always
+    #tag: "v0.5.3"
+    tag: ""
+  imagePullSecrets: []
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  containerPorts:
+    - name: port4
+      containerPort: 50052
+  service:
+    annotations:
+      networking.gke.io/load-balancer-type: Internal
+      networking.gke.io/internal-load-balancer-allow-global-access: "true"
+      external-dns.alpha.kubernetes.io/hostname: nativelink-scheduler-grpc.dev-skcfd.com
+    type: LoadBalancer
+    ports:
+      - port: 50052
+        targetPort: port4
+        protocol: TCP
+        name: port4
+  ingress:
+    enabled: true
+    className: ingress-controller-internal
+    annotations:
+      cert-manager.io/cluster-issuer: zerossl-cluster-issuer-skcfd-com
+      nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    hosts:
+      - host: nativelink-scheduler-grpc.dev-skcfd.com
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls:
+      - secretName: nativelink-scheduler-tls
+        hosts:
+          - nativelink-scheduler-grpc.dev-skcfd.com
+  resources: {}
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  startupProbe: {}
+  readinessProbe: {}
+  livenessProbe: {}
+  conf: |-
+    {
+      "stores": [
+        {
+          "name": "GRPC_LOCAL_STORE",
+          // Note: This file is used to test GRPC store.
+          "grpc": {
+            "instance_name": "",
+            "endpoints": [
+              {"address": "grpc://${CAS_ENDPOINT:-127.0.0.1}:50051"}
+            ],
+            "store_type": "cas"
+          }
+        }, {
+          "name": "GRPC_LOCAL_AC_STORE",
+          // Note: This file is used to test GRPC store.
+          "grpc": {
+            "instance_name": "",
+            "endpoints": [
+              {"address": "grpc://${CAS_ENDPOINT:-127.0.0.1}:50051"}
+            ],
+            "store_type": "ac"
+          }
+        }
+      ],
+      "schedulers": [
+        {
+          "name": "MAIN_SCHEDULER",
+          "simple": {
+            "supported_platform_properties": {
+              "cpu_count": "minimum",
+              "OSFamily": "priority",
+              "container-image": "priority",
+              "lre-rs": "priority"
+            }
+          }
+        }
+      ],
+      "servers": [{
+        "listener": {
+          "http": {
+            "socket_address": "0.0.0.0:50052"
+          }
+        },
+        // Each of the services below is keyed on an instance_name.
+        // By default, an empty string is used, but if a different
+        // instance_name is provided, the instance name must be
+        // specified by the invoking tool (e.g. using
+        // `--remote_instance_name=` for Bazel)
+        "services": {
+          "ac": {
+            "": {
+              "ac_store": "GRPC_LOCAL_AC_STORE"
+            }
+          },
+          "execution": {
+            "": {
+              "cas_store": "GRPC_LOCAL_STORE",
+              "scheduler": "MAIN_SCHEDULER"
+            }
+          },
+          "capabilities": {
+            "": {
+              "remote_execution": {
+                "scheduler": "MAIN_SCHEDULER"
+              }
+            }
+          }
+        }
+      }, {
+        "listener": {
+          "http": {
+            "socket_address": "0.0.0.0:50061"
+          }
+        },
+        "services": {
+          // Note: This should be served on a different port, because it has
+          // a different permission set than the other services.
+          // In other words, this service is a backend api. The ones above
+          // are a frontend api.
+          "worker_api": {
+            "scheduler": "MAIN_SCHEDULER"
+          },
+          "health": {}
+        }
+      }]
+    }
+
+local_storage_cas:
+  env:
+    - name: RUST_LOG
+      value: warn
+  volumes: []
+  volumeMounts: []
+  persistence:
+    enabled: true
+    storageClassName: ssd-aero
+    size: 10Gi
+  replicaCount: 1
+  image:
+    repository: ghcr.io/tracemachina/nativelink
+    pullPolicy: Always
+    #tag: "v0.5.3"
+    tag: ""
+  imagePullSecrets: []
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  containerPorts:
+    - name: port1
+      containerPort: 50051
+    - name: port2
+      containerPort: 50061
+    - name: port3
+      containerPort: 50071
+  service:
+    annotations:
+      networking.gke.io/load-balancer-type: Internal
+      networking.gke.io/internal-load-balancer-allow-global-access: "true"
+      external-dns.alpha.kubernetes.io/hostname: nativelink-cache-grpc.dev-skcfd.com
+    type: LoadBalancer
+    ports:
+      - port: 50051
+        targetPort: port1
+        protocol: TCP
+        name: port1
+      # - port: 50061
+      #   targetPort: port2
+      #   protocol: TCP
+      #   name: port2
+      # - port: 50071
+      #   targetPort: port3
+      #   protocol: TCP
+      #   name: port3
+  ingress:
+    enabled: true
+    className: ingress-controller-internal
+    annotations:
+      cert-manager.io/cluster-issuer: zerossl-cluster-issuer-skcfd-com
+      nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    hosts:
+      - host: nativelink-cache-grpc.dev-skcfd.com
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls:
+      - secretName: nativelink-cache-tls
+        hosts:
+          - nativelink-cache-grpc.dev-skcfd.com
+  resources: {}
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  startupProbe: {}
+  readinessProbe: {}
+  livenessProbe: {}
+  conf: |-
+    // This configuration will place objects in various folders in
+    // `~/.cache/nativelink`. It will store all data on disk and
+    // allows for restarts of the underlying service. It is optimized
+    // so objects are compressed, deduplicated and uses some in-memory
+    // optimizations for certain hot paths.
+    {
+      "stores": [
+        {
+          "name": "CAS_MAIN_STORE",
+          "compression": {
+            "compression_algorithm": {
+              "lz4": {}
+            },
+            "backend": {
+              "filesystem": {
+                "content_path": "~/.cache/nativelink/content_path-cas",
+                "temp_path": "~/.cache/nativelink/tmp_path-cas",
+                "eviction_policy": {
+                  // 10gb.
+                  "max_bytes": 10000000000
+                }
+              }
+            }
+          }
+        }, {
+          "name": "AC_MAIN_STORE",
+          "filesystem": {
+            "content_path": "~/.cache/nativelink/content_path-ac",
+            "temp_path": "~/.cache/nativelink/tmp_path-ac",
+            "eviction_policy": {
+              // 500mb.
+              "max_bytes": 500000000
+            }
+          }
+        }
+      ],
+      "servers": [{
+        "listener": {
+          "http": {
+            "socket_address": "0.0.0.0:50051"
+          }
+        },
+        "services": {
+          "cas": {
+            "": {
+              "cas_store": "CAS_MAIN_STORE"
+            }
+          },
+          "ac": {
+            "": {
+              "ac_store": "AC_MAIN_STORE"
+            }
+          },
+          "capabilities": {},
+          "bytestream": {
+            "cas_stores": {
+              "": "CAS_MAIN_STORE"
+            }
+          }
+        }
+      }, {
+        // Only publish metrics on a private port.
+        "listener": {
+          "http": {
+            "socket_address": "0.0.0.0:50061"
+          }
+        },
+        "services": {
+          "experimental_prometheus": {
+            "path": "/metrics"
+          }
+        }
+      },
+      {
+        "listener": {
+          "http": {
+            "socket_address": "0.0.0.0:50071",
+            "tls": {
+              "cert_file": "/root/example-do-not-use-in-prod-rootca.crt",
+              "key_file": "/root/example-do-not-use-in-prod-key.pem"
+            }
+          }
+        },
+        // Each of the services below is keyed on an instance_name.
+        // By default, an empty string is used, but if a different
+        // instance_name is provided, the instance name must be
+        // specified by the invoking tool (e.g. using
+        // `--remote_instance_name=` for Bazel)
+        "services": {
+          "cas": {
+            "": {
+              "cas_store": "CAS_MAIN_STORE"
+            }
+          },
+          "ac": {
+            "": {
+              "ac_store": "AC_MAIN_STORE"
+            }
+          },
+          "capabilities": {},
+          "bytestream": {
+            "cas_stores": {
+              "": "CAS_MAIN_STORE"
+            }
+          },
+          "health": {}
+        }
+      }]
+    }
+

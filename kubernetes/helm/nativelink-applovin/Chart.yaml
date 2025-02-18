@@ -1,0 +1,6 @@
+apiVersion: v2
+appVersion: v0.5.4
+description: A Helm chart for Kubernetes
+name: nativelink-applovin
+type: application
+version: 0.7.0

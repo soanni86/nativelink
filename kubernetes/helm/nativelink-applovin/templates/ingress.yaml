@@ -1,0 +1,110 @@
+{{- if .Values.local_storage_cas.ingress.enabled -}}
+{{- $svcPort := 50051 -}}
+{{- if and .Values.local_storage_cas.ingress.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
+  {{- if not (hasKey .Values.local_storage_cas.ingress.annotations "kubernetes.io/ingress.class") }}
+  {{- $_ := set .Values.local_storage_cas.ingress.annotations "kubernetes.io/ingress.class" .Values.local_storage_cas.ingress.className}}
+  {{- end }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nativelink-cas
+  labels:
+    {{- include "nativelink-applovin.labels" . | nindent 4 }}
+    component: local_storage_cas
+  {{- with .Values.local_storage_cas.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if and .Values.local_storage_cas.ingress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
+  ingressClassName: {{ .Values.local_storage_cas.ingress.className }}
+  {{- end }}
+  {{- if .Values.local_storage_cas.ingress.tls }}
+  tls:
+    {{- range .Values.local_storage_cas.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.local_storage_cas.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- if and .pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+            pathType: {{ .pathType }}
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: nativelink-cas
+                port:
+                  number: {{ $svcPort }}
+              {{- else }}
+              serviceName: nativelink-cas
+              servicePort: {{ $svcPort }}
+              {{- end }}
+          {{- end }}
+    {{- end }}
+{{- end }}
+---
+{{- if .Values.scheduler.ingress.enabled -}}
+{{- $svcPort := 50052 -}}
+{{- if and .Values.scheduler.ingress.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
+  {{- if not (hasKey .Values.scheduler.ingress.annotations "kubernetes.io/ingress.class") }}
+  {{- $_ := set .Values.scheduler.ingress.annotations "kubernetes.io/ingress.class" .Values.scheduler.ingress.className}}
+  {{- end }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nativelink-scheduler
+  labels:
+    {{- include "nativelink-applovin.labels" . | nindent 4 }}
+  {{- with .Values.scheduler.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if and .Values.scheduler.ingress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
+  ingressClassName: {{ .Values.scheduler.ingress.className }}
+  {{- end }}
+  {{- if .Values.scheduler.ingress.tls }}
+  tls:
+    {{- range .Values.scheduler.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.scheduler.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- if and .pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+            pathType: {{ .pathType }}
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: nativelink-scheduler
+                port:
+                  number: {{ $svcPort }}
+              {{- else }}
+              serviceName: nativelink-scheduler
+              servicePort: {{ $svcPort }}
+              {{- end }}
+          {{- end }}
+    {{- end }}
+{{- end }}
