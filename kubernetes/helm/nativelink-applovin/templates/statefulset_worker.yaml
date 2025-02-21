@@ -42,6 +42,12 @@ spec:
           env:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if .Values.worker.commandOverride }}
+          command:
+          {{- range .Values.worker.commandOverride }}
+            - {{ . | quote }}
+          {{- end }}
+          {{- end }}
           args:
             - "/conf.json5"
         {{- with .Values.worker.containerPorts }}

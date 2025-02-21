@@ -42,6 +42,12 @@ spec:
           env:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if .Values.local_storage_cas.commandOverride }}
+          command:
+          {{- range .Values.local_storage_cas.commandOverride }}
+            - {{ . | quote }}
+          {{- end }}
+          {{- end }}
           args:
             - "/conf.json5"
         {{- with .Values.local_storage_cas.containerPorts }}

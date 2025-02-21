@@ -41,6 +41,12 @@ spec:
           env:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if .Values.scheduler.commandOverride }}
+          command:
+          {{- range .Values.scheduler.commandOverride }}
+            - {{ . | quote }}
+          {{- end }}
+          {{- end }}
           args:
             - "/conf.json5"
         {{- with .Values.scheduler.containerPorts }}
